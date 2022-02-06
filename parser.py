@@ -1,4 +1,5 @@
 import time
+import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from lxml import html
@@ -19,7 +20,6 @@ prices = list()
 last_page = tree.xpath('//li[@class="pagination-widget__page"]/@data-page-number')[-1]
 last_page = int(last_page)
 
-# 6, 8 - "problem" pages
 page_num = 1
 
 while page_num <= last_page:
@@ -31,19 +31,19 @@ while page_num <= last_page:
 
     driver.get(url)
 
-    time.sleep(5)
+    time.sleep(3)
 
     name = driver.find_elements_by_class_name('catalog-product__name')
     price = driver.find_elements_by_class_name('product-buy__price')
     link = driver.find_elements_by_class_name('catalog-product__name')
 
-    print('\nСтраница: %s' % page_num)
+    print('\nСтраница: %s из %s' % (page_num, last_page))
 
     for i in name:
         names.append(i.text)
     print("Names length: %s" % len(names))
 
-    for i in price: # price to ints
+    for i in price:
         i = i.text.split(" ")
         res = i[0]+i[1]
         prices.append("".join(res))
@@ -58,12 +58,6 @@ while page_num <= last_page:
 driver.close()
 
 
-# write parsed lists to txts
-with open("prices.txt", "w", encoding="utf_8") as outfile:
-    outfile.write("\n".join(prices))
-
-with open("names.txt", "w", encoding="utf_8") as outfile:
-    outfile.write("\n".join(names))
-
-with open("links.txt", "w", encoding="utf_8") as outfile:
-    outfile.write("\n".join(refs))
+dict = {'Price': prices, 'Name': names, 'Link': refs}
+df = pd.DataFrame(data=dict)
+df.to_excel("output.xlsx")
