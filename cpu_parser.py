@@ -5,7 +5,7 @@ from selenium.webdriver.chrome.service import Service
 from lxml import html
 
 
-url = "https://www.dns-shop.ru/catalog/17a892f816404e77/noutbuki/?order=2"
+url = "https://www.dns-shop.ru/catalog/17a899cd16404e77/processory/?order=6&p1"
 
 driver = webdriver.Chrome(service=Service("./src/chromedriver.exe"), options=webdriver.ChromeOptions())
 driver.get(url)
@@ -24,10 +24,10 @@ page_num = 1
 
 while page_num <= last_page:
 
-    if (page_num==1):
-        url = "https://www.dns-shop.ru/catalog/17a892f816404e77/noutbuki/?order=2"
+    if page_num==1:
+        url = "https://www.dns-shop.ru/catalog/17a899cd16404e77/processory/?order=6&p1"
     else:
-        url = "https://www.dns-shop.ru/catalog/17a892f816404e77/noutbuki/?order=2&p=%s" % page_num
+        url = "https://www.dns-shop.ru/catalog/17a899cd16404e77/processory/?order=6&p%s" % page_num
 
     driver.get(url)
 
