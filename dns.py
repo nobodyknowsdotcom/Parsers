@@ -6,35 +6,39 @@ from selenium.webdriver.chrome.options import Options
 
 chrome_options = Options()
 driver = webdriver.Chrome(service=Service("./src/chromedriver.exe"), options=chrome_options)
+
 links = []
-all_links = []
+items = []
+with open("categories.txt") as file:
+    for line in file: 
+        line = line.strip()
+        links.append(line)
 
-def getChildLinks(driver, url, list):
-    if url not in all_links:
-        driver.get(url)
-        time.sleep(0.2)
+def getLastPage(driver):
+    soup = BeautifulSoup(driver.page_source, 'lxml')
+    try:
+        pagination = soup.find_all('li', {'class': 'pagination-widget__page'})[-1]
+        last_page = int(pagination['data-page-number'])
+    except:
+        last_page = 1
+    return last_page
+
+for link in links[:200]:
+    driver.get(link)
+    last_page = getLastPage(driver)
+    
+    print(last_page)
+    for i in range(last_page):
+        driver.get(link+'?p=%s'%str(i+1))
         soup = BeautifulSoup(driver.page_source, 'lxml')
-        links = soup.find_all('a', {'class':['subcategory__item', 'subcategory__item', 'ui-link ui-link_blue']})
-        if len(links) > 0:
-            for e in links:
-                try:
-                    getChildLinks(driver, 'https://www.dns-shop.ru'+e['href'], links)
-                except:
-                    pass
-        else:
-            print('%s added to list'%url)
-            list.append(url)
-        all_links.append(url)
+        cards = soup.find_all('a', {'class':'catalog-product__name'})
+        for e in cards:
+            item = e.findChild('span', recursive=True).get_text()
+            items.append(item)
+            print(item)
 
-driver.get('https://www.dns-shop.ru/catalog/')
-soup = BeautifulSoup(driver.page_source, 'lxml')
-for e in soup.find_all('div', {'class': ['subcategory__item', 'subcategory__item_with-childs']}):
-    category = e.find('a', {'class': 'subcategory__childs-item'})['href']
-    time.sleep(0.5)
-    getChildLinks(driver, 'https://www.dns-shop.ru'+category, links)
-
-with open('categories.txt', 'w') as f:
-    for item in links:
+with open('items.txt', 'w') as f:
+    for item in items:
         f.write("%s\n" % item)
 
 driver.close()
