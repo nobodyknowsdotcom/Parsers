@@ -1,3 +1,4 @@
+from dis import dis
 import time
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -23,21 +24,42 @@ def getLastPage(driver):
         last_page = 1
     return last_page
 
-for link in links[:200]:
+def parseCard(content):
+    try:
+        old_price = content.find('div', {'class':'catalog-product__price-old'}).get_text()
+        discount_price = content.find('div', {'class':'catalog-product__price-actual'}).get_text()
+    except:
+        old_price = content.find('div', {'class':'product-buy__price'}).get_text()
+        discount_price = old_price
+    name = content.find('a', {'class':'catalog-product__name'}).findChild('span', recursive=True).get_text()
+    url = content.find('a', {'class':'catalog-product__name'})['href']
+    return [name, old_price, discount_price, url]
+
+for link in links[:10]:
     driver.get(link)
     last_page = getLastPage(driver)
-    
     print(last_page)
+    
+    if last_page == 1:
+        soup = BeautifulSoup(driver.page_source, 'lxml')
+        cards = soup.find_all('div', {'class':['catalog-product', 'ui-button-widget']})
+        for e in cards:
+            data = parseCard(e)
+            items.append(data)
+            print(*data, sep='\t')
+            continue
+
+    
     for i in range(last_page):
         driver.get(link+'?p=%s'%str(i+1))
         soup = BeautifulSoup(driver.page_source, 'lxml')
-        cards = soup.find_all('a', {'class':'catalog-product__name'})
+        cards = soup.find_all('div', {'class':'catalog-product'})
         for e in cards:
-            item = e.findChild('span', recursive=True).get_text()
-            items.append(item)
-            print(item)
+            data = parseCard(e)
+            items.append(data)
+            print(*data, sep='\t')
 
-with open('items.txt', 'w') as f:
+with open('items.txt', 'w', encoding='utf-8') as f:
     for item in items:
         f.write("%s\n" % item)
 
