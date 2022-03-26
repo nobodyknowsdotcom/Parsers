@@ -11,7 +11,10 @@ all_links = []
 
 def getLinks(driver, url, list):
     if url not in all_links:
-        driver.get(url)
+        try:
+            driver.get(url)
+        except:
+            pass
         soup = BeautifulSoup(driver.page_source, 'lxml')
         links = soup.find_all('a', {'class':'subcategory__item'})
         if len(links) > 0:
@@ -23,7 +26,7 @@ def getLinks(driver, url, list):
                 list.append(link)
             else: 
                 link = '/'.join(url.split('/')[:6])+'/'
-                list.append(link)
+                list.append(link)        
             print(link)
     all_links.append(url)
 
