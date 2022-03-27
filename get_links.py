@@ -23,10 +23,12 @@ def getLinks(driver, url, list):
         else:
             if 'recipe' in url:
                 link = '/'.join(url.split('/')[:7])+'/'
-                list.append(link)
+                if not link in list:
+                    list.append(link)
             else: 
                 link = '/'.join(url.split('/')[:6])+'/'
-                list.append(link)        
+                if not link in list:
+                    list.append(link)      
             print(link)
     all_links.append(url)
 
