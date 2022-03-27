@@ -44,8 +44,11 @@ def parseCard(content):
     return [name, old_price, discount_price, url]
 
 startTime = datetime.now()
-for link in links[:200]:
-    driver.get(link)
+for link in links:
+    try:
+        driver.get(link)
+    except:
+        continue
     last_page = getLastPage(driver)
     total_pages += last_page
 
@@ -56,7 +59,6 @@ for link in links[:200]:
             try:
                 data = parseCard(e)
             except AttributeError:
-                print('Card parsing error!')
                 continue
             items.append(data)
         print(link, len(items), sep=':')
@@ -71,7 +73,6 @@ for link in links[:200]:
                 try:
                     data = parseCard(e)
                 except AttributeError:
-                    print('Card parsing error!')
                     continue
                 items.append(data)
 
