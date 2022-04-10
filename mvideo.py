@@ -9,6 +9,7 @@ options = Options()
 options.add_experimental_option("excludeSwitches", ["enable-logging"])
 driver = webdriver.Chrome(service=Service("./chromedriver.exe"), options=options)
 driver.set_window_size(600, 1000)
+driver.set_window_position(-2000, -2000)
 
 links = []
 with open("mvideo_links.txt") as file:
@@ -55,8 +56,9 @@ def parseCard(card: BeautifulSoup):
     return [name, price, discount_price, rating, feedbackCount, link, categories]
 
 items = []
-for link in links[:50]:
+for link in links:
     postfix = '/f/skidka=da'
+    driver.set_window_position(-2000, -2000)
     driver.get(link.split('?')[0]+postfix)
     driver.execute_script("document.body.style.zoom='15%'")
     driver.execute_script("window.scrollTo(0,document.body.scrollHeight)")
@@ -67,8 +69,8 @@ for link in links[:50]:
     try:
         lastPage = int(getLastPage(soup))
     except (IndexError, AttributeError):
-        print('IndexError')
-    print('Last page for %s : %s'%(link.split('?')[0]+postfix, lastPage))
+        print('Last page not found')
+    print('Last page for %s is %s'%(link.split('?')[0]+postfix, lastPage))
 
     for i in range(lastPage):
         driver.delete_all_cookies()
@@ -88,9 +90,7 @@ for link in links[:50]:
                 pass
         
         try:
-            if not is_aviable(cards[-1]):
-                print('Out of stock found!')
-                break
+            if not is_aviable(cards[-1]): break
         except:
             pass
         print("Found %s cards, totally %s items"%(len(cards), len(items)))
@@ -98,4 +98,6 @@ for link in links[:50]:
 with open('mvideo_items.txt', 'w', encoding='utf-8') as file:
     for e in items:
         file.write('%s\n'%e)
+
+driver.close()
 
