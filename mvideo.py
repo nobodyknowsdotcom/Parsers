@@ -2,13 +2,13 @@ import re
 import time
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 
-chrome_options = Options()
-driver = webdriver.Chrome(service=Service("./src/chromedriver.exe"), options=chrome_options)
-driver.set_window_size(500, 800)
+options = Options()
+options.add_experimental_option("excludeSwitches", ["enable-logging"])
+driver = webdriver.Chrome(service=Service("./chromedriver.exe"), options=options)
+driver.set_window_size(600, 1000)
 
 links = []
 with open("mvideo_links.txt") as file:
@@ -16,17 +16,27 @@ with open("mvideo_links.txt") as file:
         line = line.strip()
         links.append(line)
 
+def getLastPage(soup: BeautifulSoup):
+    buttons_container = soup.find('div',{'class':'bottom-controls'})
+    lastPageElement = buttons_container.find_all('li', {'class':'ng-star-inserted'})[-1].findChild('a', recursive=True)
+    return lastPageElement.get_text()
+
 def getCards(soup: BeautifulSoup):
     return soup.findChildren('mvid-plp-product-card-mobile', recursive=True)
 
-def getLastPage(soup: BeautifulSoup):
-    buttons_container = soup.find('div',{'class':'bottom-controls'})
-    lastPageElement = buttons_container.find_all('li', {'class':'ng-star-inserted'})[-2].findChild('a', recursive=True)
-    return lastPageElement.get_text()
+def is_aviable(card: BeautifulSoup):
+    aviable = card.findChild('mvid-plp-notification-block', recursive=True).findChild('div', recursive=True).get_text()
+    if aviable.strip() == 'Нет в наличии':
+        return False
+    else:
+         return True
 
 def parseCard(card: BeautifulSoup):
     name = card.find('a', {'class':'product-title__text'}).get_text()
     link = card.find('a', {'class':'product-title__text'})['href']
+    categories = []
+    for e in soup.find('ul', {'itemtype':'http://schema.org/BreadcrumbList'}).findChildren('span', recursive=True)[1:]:
+        categories.append(e.get_text())
     try:
         rating = card.find('mvid-plp-product-rating', {'class':'ng-star-inserted'}).findChild('span', recursive=True).get_text()
     except:
@@ -42,12 +52,12 @@ def parseCard(card: BeautifulSoup):
         price = re.sub("[^0-9]", "", prices[1].get_text())
     except:
         price = discount_price
-    return [name, price, discount_price, rating, feedbackCount, link]
+    return [name, price, discount_price, rating, feedbackCount, link, categories]
 
 items = []
-for link in links:
-    driver.delete_all_cookies()
-    driver.get(link.split('?')[0]+'/f/skidka=da/tolko-v-nalichii=da')
+for link in links[:50]:
+    postfix = '/f/skidka=da'
+    driver.get(link.split('?')[0]+postfix)
     driver.execute_script("document.body.style.zoom='15%'")
     driver.execute_script("window.scrollTo(0,document.body.scrollHeight)")
     time.sleep(3)
@@ -56,25 +66,33 @@ for link in links:
     lastPage = 1
     try:
         lastPage = int(getLastPage(soup))
-    except IndexError:
+    except (IndexError, AttributeError):
         print('IndexError')
-    print('Last page for %s : %s'%(link, lastPage))
+    print('Last page for %s : %s'%(link.split('?')[0]+postfix, lastPage))
 
     for i in range(lastPage):
         driver.delete_all_cookies()
-        driver.get(link.split('?')[0]+'/f/skidka=da/tolko-v-nalichii=da?page=%s'%str(i+1))
-        driver.execute_script("document.body.style.zoom='5%'")
+        postfix = '/f/skidka=da?page=%s'%str(i+1)
+
+        driver.get(link.split('?')[0]+postfix)
+        driver.execute_script("document.body.style.zoom='12%'")
         driver.execute_script("window.scrollTo(0,document.body.scrollHeight)")
-        time.sleep(3)
+        time.sleep(1.7)
         soup = BeautifulSoup(driver.page_source, 'lxml')
         cards = getCards(soup)
         for card in cards:
             try:
                 data = parseCard(card)
-                print(data)
                 items.append(data)
             except:
                 pass
+        
+        try:
+            if not is_aviable(cards[-1]):
+                print('Out of stock found!')
+                break
+        except:
+            pass
         print("Found %s cards, totally %s items"%(len(cards), len(items)))
 
 with open('mvideo_items.txt', 'w', encoding='utf-8') as file:
