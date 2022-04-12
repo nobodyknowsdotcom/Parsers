@@ -1,0 +1,1 @@
+For correct output download and place [this](https://drive.google.com/file/d/1wz5ZZRCGijf1XvdUS4hALF1Kdj4QK9yZ/view?usp=sharing) in project folder, else output will named ${name}_nodescription.csv and will include only id,size,price,discount_price,discount fields.
