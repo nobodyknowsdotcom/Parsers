@@ -25,7 +25,7 @@ def getLastPage(soup: BeautifulSoup):
 def getCards(soup: BeautifulSoup):
     return soup.findChildren('mvid-plp-product-card-mobile', recursive=True)
 
-def is_aviable(card: BeautifulSoup):
+def onStock(card: BeautifulSoup):
     aviable = card.findChild('mvid-plp-notification-block', recursive=True).findChild('div', recursive=True).get_text()
     if aviable.strip() == 'Нет в наличии':
         return False
@@ -84,13 +84,13 @@ for link in links:
         cards = getCards(soup)
         for card in cards:
             try:
-                data = parseCard(card)
-                items.append(data)
+                name, price, discount_price, rating, feedbackCount, url, categories = parseCard(card)
+                items.append([name, price, discount_price, rating, feedbackCount, url, categories])
             except:
                 pass
         
         try:
-            if not is_aviable(cards[-1]): break
+            if not onStock(cards[-1]): break
         except:
             pass
         print("Found %s cards, totally %s items"%(len(cards), len(items)))
