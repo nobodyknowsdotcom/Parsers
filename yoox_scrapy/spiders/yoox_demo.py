@@ -190,15 +190,20 @@ class WbSpider(scrapy.Spider):
 
         combined_csv = pd.DataFrame(items, columns = ['id', 'size', 'price', 'discount_price', 'discount'])
         combined_csv.to_csv('proxy_demo.csv', index=False)
+        combined_csv.drop_duplicates()
         combined_csv = pd.read_csv('proxy_demo.csv')
-        os.remove('proxy_demo.csv')
-        old = pd.read_csv("descriptions.csv")
-        old.drop(['size', 'price', 'discount_price', 'discount'], axis=1, inplace=True)
-        merged = combined_csv.merge(old, left_on="id", right_on="id", how="inner").drop_duplicates()
-        merged['discount_price'].replace('0', np.nan, inplace=True)
-        merged['details'].replace('0', np.nan, inplace=True)
-        merged.dropna(subset=['discount_price'], inplace=True)
-        merged.to_csv('yoox_demo.csv', index=False)
+        try:
+            os.remove('proxy_demo.csv')
+            old = pd.read_csv("descriptions.csv")
+            old.drop(['size', 'price', 'discount_price', 'discount'], axis=1, inplace=True)
+            merged = combined_csv.merge(old, left_on="id", right_on="id", how="inner").drop_duplicates()
+            merged['discount_price'].replace('0', np.nan, inplace=True)
+            merged['details'].replace('0', np.nan, inplace=True)
+            merged.dropna(subset=['discount_price'], inplace=True)
+            merged.to_csv('yoox_demo.csv', index=False)
+        except:
+            os.remove('proxy_demo.csv')
+            combined_csv.to_csv('yoox_demo_nodescription.csv', index=False)
     
     def parse_page(self, response):
         try:

@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import pandas as pd
 import scrapy
@@ -43,7 +44,7 @@ class WbSpider(scrapy.Spider):
         page = requests.get(url,
             headers={'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_5_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Safari/605.1.15'})
         soup = BeautifulSoup(page.text, 'lxml')
-        for e in soup.find('div', {'id': 'teleyooxCategories'}).find_all('a', {'data-tracking-label':'ctgr - choose micro'}):
+        for e in soup.find('div', {'id': 'teleyooxCategories'}).find_all('a', {'data-tracking-label':'ctgr - choose micro'})[:5]:
             raw_url = ('https://www.yoox.com'+e['href']).split('page=1')
             pages_count = self.get_pages_count(raw_url[0]+'page=1'+raw_url[1])
             for i in range(int(pages_count)):
@@ -65,7 +66,7 @@ class WbSpider(scrapy.Spider):
         page = requests.get(url,
             headers={'User-Agent':'Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0'})
         soup = BeautifulSoup(page.text, 'lxml')
-        for e in soup.find('div', {'id': 'teleyooxCategories'}).find_all('a', {'data-tracking-label':'ctgr - choose micro'}):
+        for e in soup.find('div', {'id': 'teleyooxCategories'}).find_all('a', {'data-tracking-label':'ctgr - choose micro'})[:2]:
             raw_url = ('https://www.yoox.com'+e['href']).split('page=1')
             pages_count = self.get_pages_count(raw_url[0]+'page=1'+raw_url[1])
             for i in range(int(pages_count)):
@@ -87,7 +88,7 @@ class WbSpider(scrapy.Spider):
         page = requests.get(url,
             headers={'User-Agent':'Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0'})
         soup = BeautifulSoup(page.text, 'lxml')
-        for e in soup.find('div', {'id': 'teleyooxCategories'}).find_all('a', {'data-tracking-label':'ctgr - choose micro'}):
+        for e in soup.find('div', {'id': 'teleyooxCategories'}).find_all('a', {'data-tracking-label':'ctgr - choose micro'})[:2]:
             raw_url = ('https://www.yoox.com'+e['href']).split('page=1')
             pages_count = self.get_pages_count(raw_url[0]+'page=1'+raw_url[1])
             for i in range(int(pages_count)):
@@ -109,7 +110,7 @@ class WbSpider(scrapy.Spider):
         page = requests.get(url,
             headers={'User-Agent':'Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0'})
         soup = BeautifulSoup(page.text, 'lxml')
-        for e in soup.find('div', {'id': 'teleyooxCategories'}).find_all('a', {'data-tracking-label':'ctgr - choose micro'}):
+        for e in soup.find('div', {'id': 'teleyooxCategories'}).find_all('a', {'data-tracking-label':'ctgr - choose micro'})[:2]:
             raw_url = ('https://www.yoox.com'+e['href']).split('page=1')
             pages_count = self.get_pages_count(raw_url[0]+'page=1'+raw_url[1])
             for i in range(int(pages_count)):
@@ -127,7 +128,7 @@ class WbSpider(scrapy.Spider):
         page = requests.get(url,
             headers={'User-Agent':'Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0'})
         soup = BeautifulSoup(page.text, 'lxml')
-        for e in soup.find('div', {'id': 'teleyooxCategories'}).find_all('a', {'data-tracking-label':'ctgr - choose micro'}):
+        for e in soup.find('div', {'id': 'teleyooxCategories'}).find_all('a', {'data-tracking-label':'ctgr - choose micro'})[:2]:
             raw_url = ('https://www.yoox.com'+e['href']).split('page=1')
             pages_count = self.get_pages_count(raw_url[0]+'page=1'+raw_url[1])
             for i in range(int(pages_count)):
@@ -145,7 +146,7 @@ class WbSpider(scrapy.Spider):
         page = requests.get(url,
             headers={'User-Agent':'Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0'})
         soup = BeautifulSoup(page.text, 'lxml')
-        for e in soup.find('div', {'id': 'teleyooxCategories'}).find_all('a', {'data-tracking-label':'ctgr - choose micro'}):
+        for e in soup.find('div', {'id': 'teleyooxCategories'}).find_all('a', {'data-tracking-label':'ctgr - choose micro'})[:2]:
             raw_url = ('https://www.yoox.com'+e['href']).split('page=1')
             pages_count = self.get_pages_count(raw_url[0]+'page=1'+raw_url[1])
             for i in range(int(pages_count)):
@@ -163,7 +164,7 @@ class WbSpider(scrapy.Spider):
         page = requests.get(url,
             headers={'User-Agent':'Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0'})
         soup = BeautifulSoup(page.text, 'lxml')
-        for e in soup.find('div', {'id': 'teleyooxCategories'}).find_all('a', {'data-tracking-label':'ctgr - choose micro'}):
+        for e in soup.find('div', {'id': 'teleyooxCategories'}).find_all('a', {'data-tracking-label':'ctgr - choose micro'})[:2]:
             raw_url = ('https://www.yoox.com'+e['href']).split('page=1')
             pages_count = self.get_pages_count(raw_url[0]+'page=1'+raw_url[1])
             for i in range(int(pages_count)):
@@ -181,7 +182,7 @@ class WbSpider(scrapy.Spider):
         page = requests.get(url,
             headers={'User-Agent':'Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0'})
         soup = BeautifulSoup(page.text, 'lxml')
-        for e in soup.find('div', {'id': 'teleyooxCategories'}).find_all('a', {'data-tracking-label':'ctgr - choose micro'}):
+        for e in soup.find('div', {'id': 'teleyooxCategories'}).find_all('a', {'data-tracking-label':'ctgr - choose micro'})[:2]:
             raw_url = ('https://www.yoox.com'+e['href']).split('page=1')
             pages_count = self.get_pages_count(raw_url[0]+'page=1'+raw_url[1])
             for i in range(int(pages_count)):
@@ -199,7 +200,7 @@ class WbSpider(scrapy.Spider):
         page = requests.get(url,
             headers={'User-Agent':'Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0'})
         soup = BeautifulSoup(page.text, 'lxml')
-        for e in soup.find('div', {'id': 'teleyooxCategories'}).find_all('a', {'data-tracking-label':'ctgr - choose micro'}):
+        for e in soup.find('div', {'id': 'teleyooxCategories'}).find_all('a', {'data-tracking-label':'ctgr - choose micro'})[:2]:
             raw_url = ('https://www.yoox.com'+e['href']).split('page=1')
             pages_count = self.get_pages_count(raw_url[0]+'page=1'+raw_url[1])
             for i in range(int(pages_count)):
@@ -219,15 +220,21 @@ class WbSpider(scrapy.Spider):
 
         all_filenames = ['womens.csv', 'mens.csv', 'designart.csv', 'kids.csv']
         combined_csv = pd.concat([pd.read_csv(f) for f in all_filenames])
+        os.remove('womens.csv')
+        os.remove('mens.csv')
+        os.remove('designart.csv')
+        os.remove('kids.csv')
         combined_csv.drop_duplicates()
-
-        old = pd.read_csv("descriptions.csv")
-        old.drop(['size', 'price', 'discount_price', 'discount'], axis=1, inplace=True)
-        merged = combined_csv.merge(old, left_on="id", right_on="id", how="inner").drop_duplicates()
-        merged['discount_price'].replace('0', np.nan, inplace=True)
-        merged['details'].replace('0', np.nan, inplace=True)
-        merged.dropna(subset=['discount_price'], inplace=True)
-        merged.to_csv('yoox.csv', index=False)
+        try:
+            old = pd.read_csv("descriptions.csv")
+            old.drop(['size', 'price', 'discount_price', 'discount'], axis=1, inplace=True)
+            merged = combined_csv.merge(old, left_on="id", right_on="id", how="inner").drop_duplicates()
+            merged['discount_price'].replace('0', np.nan, inplace=True)
+            merged['details'].replace('0', np.nan, inplace=True)
+            merged.dropna(subset=['discount_price'], inplace=True)
+            merged.to_csv('yoox.csv', index=False)
+        except:
+            combined_csv.to_csv('yoox_nodescription.csv', index=False)
     
     def parse_page(self, response):
         try:
