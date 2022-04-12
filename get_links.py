@@ -5,7 +5,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 
 chrome_options = Options()
-driver = webdriver.Chrome(service=Service("./src/chromedriver.exe"), options=chrome_options)
+driver = webdriver.Chrome(service=Service("./chromedriver.exe"), options=chrome_options)
 links = []
 all_links = []
 
