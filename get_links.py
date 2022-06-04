@@ -6,6 +6,7 @@ from selenium.webdriver.chrome.options import Options
 
 chrome_options = Options()
 driver = webdriver.Chrome(service=Service("./chromedriver.exe"), options=chrome_options)
+driver.set_window_position(2000, 2000)
 links = []
 all_links = []
 

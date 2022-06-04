@@ -11,7 +11,7 @@ chrome_prefs = {}
 chrome_options.experimental_options["prefs"] = chrome_prefs
 chrome_prefs["profile.default_content_settings"] = {"images": 2}
 chrome_prefs["profile.managed_default_content_settings"] = {"images": 2}
-driver = webdriver.Chrome(service=Service("./src/chromedriver.exe"), options=chrome_options)
+driver = webdriver.Chrome(service=Service("./chromedriver.exe"), options=chrome_options)
 
 DOWNLOAD_INTERVAL = 1
 
@@ -21,7 +21,8 @@ total_pages = 0
 with open("categories.txt") as file:
     for line in file: 
         line = line.strip()
-        links.append(line)
+        if ('recipe' not in line):
+            links.append(line)
 
 def getLastPage(driver):
     soup = BeautifulSoup(driver.page_source, 'lxml')
@@ -32,25 +33,28 @@ def getLastPage(driver):
         last_page = 1
     return last_page
 
-def parseCard(content):
+def parseCard(content : BeautifulSoup):
     try:
-        old_price = re.sub("[^0-9]", "", content.find('div', {'class':'catalog-product__price-old'}).get_text())
-        discount_price = re.sub("[^0-9]", "", content.find('div', {'class':'catalog-product__price-actual'}).get_text())
+        raw_old_price = content.find('span', {'class':'product-buy__prev'}).get_text()
+        old_price = re.sub("[^0-9]", "", raw_old_price)
+
+        raw_discount_price = content.find('div', {'class':'product-buy__price'}).get_text()
+        discount_price = re.sub("[^0-9]", "", raw_discount_price.split('₽')[0])
     except:
-        old_price = re.sub("[^0-9]", "", content.find('div', {'class':'product-buy__price'}).get_text())
+        raw_old_price = content.find('div', {'class':'product-buy__price'}).get_text()
+        old_price = re.sub("[^0-9]", "", raw_old_price)
         discount_price = old_price
+
     name = content.find('a', {'class':'catalog-product__name'}).findChild('span', recursive=True).get_text()
     url = 'https://www.dns-shop.ru'+content.find('a', {'class':'catalog-product__name'})['href']
     return [name, old_price, discount_price, url]
 
-startTime = datetime.now()
-for link in links:
+for link in links[:2]:
     try:
         driver.get(link)
     except:
         continue
     last_page = getLastPage(driver)
-    total_pages += last_page
 
     if (last_page == 1):
         soup = BeautifulSoup(driver.page_source, 'lxml')
@@ -63,22 +67,25 @@ for link in links:
             items.append(data)
         print(link, len(items), sep=':')
     else:
-        for i in range(last_page):
+        for i in range(last_page)[:2]:
             driver.get(link+'?p=%s'%str(i+1))
             time.sleep(DOWNLOAD_INTERVAL)
             print('Getting page %s of %s'%(str(i+1), link))
             soup = BeautifulSoup(driver.page_source, 'lxml')
-            cards = soup.find_all('div', {'data-id':"product"})
+            cards = soup.find_all('div', {'data-id':'product'})
             for e in cards:
                 try:
-                    data = parseCard(e)
+                    name, old_price, discount_price, url = parseCard(e)
                 except AttributeError:
                     continue
-                items.append(data)
+                print(old_price, discount_price, sep="/---/")
+                items.append([name, old_price, discount_price, url])
+    
+    total_pages += 1
 
 with open('items.txt', 'w', encoding='utf-8') as f:
     for item in items:
         f.write("%s\n" % item)
 
-print('Pages parsed: %s\nItems found:%s\nTime elapsed: %s'%(total_pages, len(items), datetime.now()-startTime))
+print('Pages parsed: %s\nItems found:%s'%(total_pages, len(items)))
 driver.close()
