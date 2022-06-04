@@ -1,4 +1,3 @@
-from datetime import datetime
 import re
 import time
 from bs4 import BeautifulSoup
@@ -12,6 +11,7 @@ chrome_options.experimental_options["prefs"] = chrome_prefs
 chrome_prefs["profile.default_content_settings"] = {"images": 2}
 chrome_prefs["profile.managed_default_content_settings"] = {"images": 2}
 driver = webdriver.Chrome(service=Service("./chromedriver.exe"), options=chrome_options)
+driver.set_window_position(-2000, -2000)
 
 REQUEST_INTERVAL = 1
 
@@ -55,7 +55,7 @@ def getCategories(content : BeautifulSoup):
         categories.append(e.get_text())
     return categories
 
-for link in links[:2]:
+for link in links[:100]:
     try:
         driver.get(link)
     except:
@@ -63,20 +63,22 @@ for link in links[:2]:
 
     content = BeautifulSoup(driver.page_source, 'lxml')
     last_page = getLastPage(content)
-    categories = getCategories(content)[1:]
+    categories = getCategories(content)
 
     if (last_page == 1):
         soup = BeautifulSoup(driver.page_source, 'lxml')
         cards = soup.find_all('div', {'data-id':"product"})
         for e in cards:
             try:
-                data = parseCard(e)
+                name, old_price, discount_price, url = parseCard(e)
             except AttributeError:
                 continue
-            items.append(data)
+            print(categories, old_price, discount_price, sep="/---/")
+            items.append([categories, name, old_price, discount_price, url])
         print(link, len(items), sep=':')
+        total_pages += 1
     else:
-        for i in range(last_page)[:2]:
+        for i in range(last_page):
             driver.get(link+'?p=%s'%str(i+1))
             time.sleep(REQUEST_INTERVAL)
             print('Getting page %s of %s'%(str(i+1), link))
@@ -91,8 +93,7 @@ for link in links[:2]:
                     continue
                 print(categories, old_price, discount_price, sep="/---/")
                 items.append([categories, name, old_price, discount_price, url])
-    
-    total_pages += 1
+            total_pages += 1
 
 with open('items.txt', 'w', encoding='utf-8') as f:
     for item in items:
