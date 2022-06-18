@@ -8,20 +8,18 @@
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
 
-BOT_NAME = 'wb'
-
 SPIDER_MODULES = ['wb.spiders']
 NEWSPIDER_MODULE = 'wb.spiders'
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_5_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 YaBrowser/21.6.0 Yowser/2.5 Safari/537.36'
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36'
 
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 
-CONCURRENT_REQUESTS = 16
+CONCURRENT_REQUESTS = 8
 
 RANDOMIZE_DOWNLOAD_DELAY = True
 
@@ -38,7 +36,7 @@ DNSCACHE_SIZE = 6000
 #CONCURRENT_REQUESTS_PER_IP = 16
 
 # Disable cookies (enabled by default)
-#COOKIES_ENABLED = False
+# COOKIES_ENABLED = True
 
 # Disable Telnet Console (enabled by default)
 #TELNETCONSOLE_ENABLED = False

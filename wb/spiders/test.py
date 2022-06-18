@@ -8,13 +8,6 @@ from scrapy.crawler import CrawlerProcess
 BASE_URL = 'https://www.wildberries.ru'
 CATALOG_URL = 'https://napi.wildberries.ru/api/menu/getburger?includeBrands=False'
 
-# Time after which the parser will change the proxy (in seconds)
-PROXY_LIFETIME = 420
-
-file = open('proxy.txt')
-proxy_list = [e.strip() for e in file.readlines()]
-file.close
-
 alert_list = []
 denied_list = []
 pages = []
@@ -48,13 +41,11 @@ def expand_catalog(full_catalog, prefix=''):
 
 
 class WbSpider(scrapy.Spider):
-    name = 'wb'
+    name = 'test'
 
     def start_requests(self):
-        init_time = time.time()
-        PROXY_INDEX = 0
 
-        for catalog in expand_catalog(get_request('https://napi.wildberries.ru/api/menu/getburger?includeBrands=False').json()['data']['catalog'][:-4])[::-1]:
+        for catalog in expand_catalog(get_request('https://napi.wildberries.ru/api/menu/getburger?includeBrands=False').json()['data']['catalog'][:-4]):
             r = get_request(catalog[0] + '1')
             soup = BeautifulSoup(r.content)
             try:
@@ -70,23 +61,9 @@ class WbSpider(scrapy.Spider):
             print("Pages: ", pages_count)
 
             for page_id in range(1, pages_count + 1):
-                delta_time = time.time()-init_time
-
-                if(delta_time > PROXY_LIFETIME):
-                    init_time = time.time()
-                    
-                    # drop PROXY_INDEX to 0 for circular iteration over the proxy sheet
-                    if (PROXY_INDEX == len(proxy_list)-1):
-                        PROXY_INDEX = 0
-                    else:
-                        PROXY_INDEX += 1
-                    print("%s seconds have passed, it's time to change proxy!" % str(int(delta_time)))
-                    print('New proxy is: %s with index %s'%(str(proxy_list[PROXY_INDEX]), PROXY_INDEX))
-                    time.sleep(2)
                 request = scrapy.Request(
                     url=catalog[0] + str(page_id) + '&sort=popular&discount=20', 
-                    callback=lambda r: self.parse_page(r, catalog[1]),
-                    meta={"proxy": "http://%s"%proxy_list[PROXY_INDEX]})
+                    callback=lambda r: self.parse_page(r, catalog[1]))
                 yield request
 
     def parse_page(self, response, category_title):
@@ -102,6 +79,8 @@ class WbSpider(scrapy.Spider):
             sale = product_card.css('span.product-card__sale::text').extract_first()
             if not sale:
                 sale = '-0%'
+            
+            print(name, price)
         pages.append('something')
         print(category_title, response.url.split('?')[1].split('&')[0], "pages crawled:", len(pages))
 
