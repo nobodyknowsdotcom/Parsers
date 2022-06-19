@@ -76,7 +76,6 @@ for link in links[:100]:
             print(categories, old_price, discount_price, sep="/---/")
             items.append([categories, name, old_price, discount_price, url])
         print(link, len(items), sep=':')
-        total_pages += 1
     else:
         for i in range(last_page):
             driver.get(link+'?p=%s'%str(i+1))
@@ -89,15 +88,9 @@ for link in links[:100]:
             for e in cards:
                 try:
                     name, old_price, discount_price, url = parseCard(e)
+                    category = categories[-1]
                 except AttributeError:
                     continue
-                print(categories, old_price, discount_price, sep="/---/")
-                items.append([categories, name, old_price, discount_price, url])
-            total_pages += 1
+                print(name, old_price, discount_price, category, sep="\t") 
 
-with open('items.txt', 'w', encoding='utf-8') as f:
-    for item in items:
-        f.write("%s\n" % item)
-
-print('Pages parsed: %s\nItems found:%s'%(total_pages, len(items)))
 driver.close()
