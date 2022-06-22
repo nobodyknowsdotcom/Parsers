@@ -1,16 +1,27 @@
+import logging
+from urllib.request import Request
 import scrapy
 import requests
 import time
+import json
 
-from bs4 import BeautifulSoup
 from scrapy.crawler import CrawlerProcess
+from seleniumwire import webdriver
 
 BASE_URL = 'https://www.wildberries.ru'
 CATALOG_URL = 'https://napi.wildberries.ru/api/menu/getburger?includeBrands=False'
+link_1 = 'https://www.wildberries.ru/catalog/'
+link_2 = '/detail.aspx?targetUrl=GP'
 
 alert_list = []
 denied_list = []
 pages = []
+
+driver = webdriver.Chrome()
+driver.set_window_position(2000, 2000)
+logging.getLogger('scrapy').setLevel(logging.WARNING)
+logging.getLogger('seleniumwire.server').setLevel(logging.WARNING)
+logging.getLogger('seleniumwire.handler').setLevel(logging.WARNING)
 
 def get_request(url):
     while True:
@@ -42,47 +53,73 @@ def expand_catalog(full_catalog, prefix=''):
 
 class WbSpider(scrapy.Spider):
     name = 'test'
+    items = 0
 
     def start_requests(self):
-
+        current_page = 0
+        content_url = ''
+        count_url = ''
+        
         for catalog in expand_catalog(get_request('https://napi.wildberries.ru/api/menu/getburger?includeBrands=False').json()['data']['catalog'][:-4]):
-            r = get_request(catalog[0] + '1')
-            soup = BeautifulSoup(r.content)
-            try:
-                products_count = ''.join(filter(lambda i: i.isdigit(),soup.find('span', {'class':'goods-count'}).findChildren('span', recursive=False)[2].text))
-            except AttributeError:
-                denied_list.append(catalog[0] + '1')
-                continue
+            driver.get(catalog[0] + '1&sort=popular&discount=30')
+            time.sleep(8)
 
-            pages_count = int(int((products_count)) / 100)
-            if (pages_count >= 999):
-                print('Original pages count: %s, trimmed to %s due to unavailability' % (pages_count, 999))
-                pages_count = 999
-            print("Pages: ", pages_count)
+            # Access requests via the `requests` attribute
+            for request in driver.requests:
+                if request.response:
+                    if '/filters?' in request.url:
+                        count_url = request.url
+                        print('count url is\n' + request.url)
+                    if '/catalog?' in request.url:
+                        print('main url is\n' + request.url)
+                        content_url = request.url
 
-            for page_id in range(1, pages_count + 1):
+            pages = (int)(self.get_products_count(count_url)/100)
+            if (pages >= 999):
+                pages = 999
+            print(pages)
+
+            for i in range(pages):
+                url = content_url+'&page=' + str(i+1)
+
                 request = scrapy.Request(
-                    url=catalog[0] + str(page_id) + '&sort=popular&discount=20', 
-                    callback=lambda r: self.parse_page(r, catalog[1]))
+                    url=url, 
+                    callback=lambda r: self.parse_request(r, i)
+                )
+
                 yield request
+        
+        driver.close()
 
-    def parse_page(self, response, category_title):
-        for product_card in response.css('div.product-card__wrapper'):
-            name = product_card.css('span.goods-name::text').extract_first().strip()
-            product_link = BASE_URL + product_card.css('a::attr(href)').extract_first()
-            price = product_card.css('.lower-price::text').extract_first().strip()
-            old_price = product_card.css('.price-old-block del::text').extract_first()
+    def parse_request(self, request: requests.Request, page: int):
+        content = self.convert_to_json(request)
 
-            if not old_price:
-                old_price = price
+        try:
+            for e in content['data']['products']:
+                product = self.get_product(e)
+                self.items += 1
                 
-            sale = product_card.css('span.product-card__sale::text').extract_first()
-            if not sale:
-                sale = '-0%'
-            
-            print(name, price)
-        pages.append('something')
-        print(category_title, response.url.split('?')[1].split('&')[0], "pages crawled:", len(pages))
+            print(str(page), str(self.items), sep=' ')
+        except json.decoder.JSONDecodeError:
+            print("Cant get " + request.url)
+
+    def get_products_count(self, url: str) -> int:
+        count_r = requests.get(url)
+        count = json.loads(count_r.text)['data']['total']
+        return count
+
+    def convert_to_json(self, response: requests.Response):
+        content = json.loads(response.text)
+        return content
+
+    def get_product(self, json: str):
+        name = json['name']
+        brand = json['brand']
+        price = (int) (json['priceU'] / 100)
+        discount_price = (int) (json['salePriceU'] / 100)
+        sale = json['sale']
+        link = link_1 + str(json['id']) + link_2
+        return [name, brand, price, discount_price, sale, link]
 
 
 if __name__ == '__main__':

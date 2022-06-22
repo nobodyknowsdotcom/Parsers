@@ -9,7 +9,7 @@ link_1 = 'https://www.wildberries.ru/catalog/'
 link_2 = '/detail.aspx?targetUrl=GP'
 
 def get_products_count(url: str) -> int:
-    count_r = requests.get(count_url)
+    count_r = requests.get(url)
     count_r.encoding = 'utf-8'
     count = json.loads(count_r.text)['data']['total']
     return count
