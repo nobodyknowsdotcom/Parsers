@@ -8,6 +8,21 @@ from seleniumwire import webdriver
 link_1 = 'https://www.wildberries.ru/catalog/'
 link_2 = '/detail.aspx?targetUrl=GP'
 
+def get_urls(driver: webdriver.Chrome):
+    content_url = ''
+    count_url = ''
+
+    for request in driver.requests:
+        if request.response:
+            if '/v4/filters?appType=1&couponsGeo=' in request.url:
+                count_url = request.url
+                print('count url is\n' + request.url)
+            if '/catalog?appType=1&couponsGeo=' in request.url:
+                print('main url is\n' + request.url)
+                content_url = request.url
+    
+    return [content_url, count_url]
+
 def get_products_count(url: str) -> int:
     count_r = requests.get(url)
     count_r.encoding = 'utf-8'
@@ -33,19 +48,11 @@ driver = webdriver.Chrome()
 driver.set_window_position(2000, 2000)
 driver.get('https://www.wildberries.ru/catalog/zhenshchinam/odezhda/bluzki-i-rubashki?sort=popular&discount=30')
 
-time.sleep(5)
 
 # Access requests via the `requests` attribute
-content_url = ''
-count_url = ''
-for request in driver.requests:
-    if request.response:
-        if '/filters?' in request.url:
-            count_url = request.url
-            print('count url is\n' + request.url)
-        if '/catalog?' in request.url:
-            print('main url is\n' + request.url)
-            content_url = request.url
+time.sleep(8)
+content_url, count_url = get_urls(driver)
+    
 driver.close()
 
 pages = (int)(get_products_count(count_url)/100)
@@ -53,7 +60,7 @@ if (pages >= 999):
     pages = 999
 print(pages)
 
-for i in range(10):
+for i in range(pages):
     url = content_url+'&page=' + str(i+1)
     try:
         content = get_content(url)
