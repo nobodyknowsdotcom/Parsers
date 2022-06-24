@@ -19,13 +19,11 @@ ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 
-CONCURRENT_REQUESTS = 6
+CONCURRENT_REQUESTS = 16
 
-RANDOMIZE_DOWNLOAD_DELAY = True
+RANDOMIZE_DOWNLOAD_DELAY = False
 
-DOWNLOAD_DELAY = 0.4
-
-DNSCACHE_SIZE = 6000
+DOWNLOAD_DELAY = 0
 
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
