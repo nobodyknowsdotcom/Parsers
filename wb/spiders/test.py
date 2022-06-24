@@ -17,11 +17,18 @@ alert_list = []
 denied_list = []
 pages = []
 
-driver = webdriver.Chrome()
+option = webdriver.ChromeOptions()
+chrome_prefs = {}
+option.experimental_options["prefs"] = chrome_prefs
+chrome_prefs["profile.default_content_settings"] = {"images": 2}
+chrome_prefs["profile.managed_default_content_settings"] = {"images": 2}
+driver = webdriver.Chrome(chrome_options=option)
 driver.set_window_position(2000, 2000)
+
 logging.getLogger('scrapy').setLevel(logging.WARNING)
 logging.getLogger('seleniumwire.server').setLevel(logging.WARNING)
 logging.getLogger('seleniumwire.handler').setLevel(logging.WARNING)
+logging.getLogger('scrapy.core.engine').setLevel(logging.WARNING)
 
 def get_request(url):
     while True:
@@ -56,27 +63,18 @@ class WbSpider(scrapy.Spider):
     items = 0
 
     def start_requests(self):
-        current_page = 0
-        content_url = ''
-        count_url = ''
         
         for catalog in expand_catalog(get_request('https://napi.wildberries.ru/api/menu/getburger?includeBrands=False').json()['data']['catalog'][:-4]):
             driver.get(catalog[0] + '1&sort=popular&discount=30')
             time.sleep(8)
-
             # Access requests via the `requests` attribute
-            for request in driver.requests:
-                if request.response:
-                    if '/filters?' in request.url:
-                        count_url = request.url
-                        print('count url is\n' + request.url)
-                    if '/catalog?' in request.url:
-                        print('main url is\n' + request.url)
-                        content_url = request.url
+            content_url, count_url = self.get_urls(driver)
+            print('content_url is: ', content_url)
+            print('count_url is: ', count_url)
 
             pages = (int)(self.get_products_count(count_url)/100)
-            if (pages >= 999):
-                pages = 999
+            if (pages >= 100):
+                pages = 100
             print(pages)
 
             for i in range(pages):
@@ -90,6 +88,21 @@ class WbSpider(scrapy.Spider):
                 yield request
         
         driver.close()
+
+    def get_urls(driver: webdriver.Chrome):
+        content_url = ''
+        count_url = ''
+
+        for request in driver.requests:
+            if request.response:
+                if '/v4/filters?appType=1&couponsGeo=' in request.url:
+                    count_url = request.url
+                    print('count url is\n' + request.url)
+                if '/catalog?appType=1&couponsGeo=' in request.url:
+                    print('main url is\n' + request.url)
+                    content_url = request.url
+    
+        return [content_url, count_url]
 
     def parse_request(self, request: requests.Request, page: int):
         content = self.convert_to_json(request)
