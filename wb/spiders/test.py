@@ -32,8 +32,8 @@ driver.set_window_position(2000, 2000)
 logging.getLogger('scrapy').setLevel(logging.WARNING)
 logging.getLogger('seleniumwire.server').setLevel(logging.WARNING)
 logging.getLogger('seleniumwire.handler').setLevel(logging.WARNING)
-logging.getLogger('scrapy.core.engine').setLevel(logging.WARNING)
-logging.getLogger('urllib3.connectionpool').setLevel(logging.WARNING)
+logging.getLogger('scrapy').propagate = False
+logging.getLogger('selenium.webdriver.remote.remote_connection').propagate = False
 
 def get_request(url):
     while True:
@@ -62,68 +62,72 @@ def expand_catalog(full_catalog, prefix=''):
                 alert_list.append(category['pageUrl'])
     return result
 
-def expand_main_menu(full_catalog):
-    result = {}
-
-    for category in full_catalog:
-
-        try:
-            if category['childs']:
-                result.update(expand_catalog(category['childs']))
-            else:
-                result[category['query']] = category['seo']
-        except KeyError:
-            try:
-                result[category['query']] =  category['seo']
-            except KeyError:
-                pass
-    return result
-
 def get_querry(url: str):
     parsed_url = urlparse(url)
-    kind = parse_qs(parsed_url.query)['kind']
-    subject = parse_qs(parsed_url.query)['subject']
+    kind = ''
+    subject = ''
     ext = ''
+
+    try:
+        kind = parse_qs(parsed_url.query)['kind']
+    except KeyError:
+        pass
+    try:
+        subject = parse_qs(parsed_url.query)['subject']
+    except KeyError:
+        pass
     try:
         ext = parse_qs(parsed_url.query)['ext']
     except KeyError:
         pass
 
-    if ('=' in ext):
-        category_query = 'kind='+''.join(kind)+'&subject='+''.join(subject)+'&ext='+str(ext)
+    category_query = ''
+    if (len(kind)) > 0:
+        if (len(subject) > 0):
+            if(len(ext) > 0):
+                category_query += 'kind='+''.join(kind)+'&subject='+''.join(subject)+'&ext='+''.join(ext)
+            else:
+                category_query += 'kind='+''.join(kind)+'&subject='+''.join(subject)
     else:
-        category_query = 'kind='+''.join(kind)+'&subject='+''.join(subject)
+        if(len(ext) > 0):
+            category_query += 'subject='+''.join(subject)+'&ext='+''.join(ext)
+        else:
+            category_query = 'subject='+''.join(subject)
     return(category_query)
 
 
 class WbSpider(scrapy.Spider):
     name = 'test'
-
-    with open('categories_dictionary.pkl', 'rb') as f:
-        category_dict = pickle.load(f)
-
     items = 0
     category = ''
+    
+    with open('categories.pickle', 'rb') as f:
+        category_dict = pickle.load(f)
 
     def start_requests(self):
-        
         for catalog in expand_catalog(get_request('https://napi.wildberries.ru/api/menu/getburger?includeBrands=False').json()['data']['catalog'][:-4]):
             driver.get(catalog[0] + '1&sort=popular&discount=30')
-            time.sleep(8)
-            # Access requests via the `requests` attribute
-            content_url, count_url = self.get_urls(driver)
+            content_url = ''
+            count_url = ''
+
+            for i in range(40):
+                content_url, count_url = self.get_urls(driver)
+                if (('catalog' in content_url) & ('filters' in count_url)):
+                    print('got urls in %s seconds'%str(i*0.2))
+                    break
+                time.sleep(0.2)
+
             category_query = get_querry(content_url)
             try:
-                print('Category query:\n' + category_query)
-                print(len(self.category_dict))
                 category = self.category_dict[category_query]
             except:
-                print('unable to parse category')
+                print('unable to parse category ' + category_query)
+                continue
 
             pages = (int)(self.get_products_count(count_url)/100)
             if (pages >= 100):
                 pages = 100
-            print(pages)
+            print(content_url, count_url, pages, sep = '---\n---\n')
 
             for i in range(pages):
                 url = content_url+'&page=' + str(i+1)
@@ -132,7 +136,6 @@ class WbSpider(scrapy.Spider):
                     callback=lambda response: self.parse_request(response, i, category)
                 )
                 yield request
-        
         driver.close()
 
     def get_urls(self, driver: webdriver.Chrome):
@@ -142,20 +145,17 @@ class WbSpider(scrapy.Spider):
             if request.response:
                 if '/v4/filters?appType=1&couponsGeo=' in request.url:
                     count_url = request.url
-                    print('count url is\n' + request.url)
                 if '/catalog?appType=1&couponsGeo=' in request.url:
-                    print('main url is\n' + request.url)
                     content_url = request.url
         return [content_url, count_url]
 
     def parse_request(self, request: requests.Request, page: int, category: str):
         content = self.convert_to_json(request)
-
         try:
             for e in content['data']['products']:
                 self.items += 1
-                product = self.get_product(e, category)
-            print(*product)
+                name, category, brand, price, discount_price, sale, link = self.get_product(e, category)
+            print(self.items, category)
         except json.decoder.JSONDecodeError:
             print("Cant get " + request.url)
 

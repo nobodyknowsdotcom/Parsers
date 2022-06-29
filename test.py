@@ -62,11 +62,14 @@ def expand_catalog(full_catalog):
             try:
                 result[category['query']] =  category['seo']
             except KeyError:
-                pass
+                try:
+                    result[category['query']] =  category['name']
+                except KeyError:
+                    pass
     return result
 
 def get_querry(url: str):
-    parsed_url = urlparse(content_url)
+    parsed_url = urlparse(url)
     kind = parse_qs(parsed_url.query)['kind']
     subject = parse_qs(parsed_url.query)['subject']
     ext = ''
@@ -86,19 +89,22 @@ driver.set_window_position(2000, 2000)
 driver.get('https://www.wildberries.ru/catalog/zhenshchinam/odezhda/bluzki-i-rubashki?sort=popular&discount=30')
 
 r = requests.get('https://www.wildberries.ru/webapi/menu/main-menu-ru-ru.json')
+categories = expand_catalog(r.json())
 
 # Access requests via the `requests` attribute
 time.sleep(8)
 content_url, count_url = get_urls(driver)
-with open('categories_dictionary.pkl', 'rb') as f:
-    category_dict = pickle.load(f)
 category_query = get_querry(content_url)
 
 try:
-    category = category_dict[category_query]
-    print(len(category_dict))
+    category = categories[category_query]
+    print(category)
+    print(len(categories))
 except:
     pass
+
+with open('categories.pickle', 'wb') as handle:
+    pickle.dump(categories, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 driver.close()
 exit()
