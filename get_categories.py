@@ -2,6 +2,7 @@ import pickle
 import json
 import time
 import requests
+import pickle
 
 def expand_catalog(full_catalog):
     result = {}
@@ -26,3 +27,6 @@ def expand_catalog(full_catalog):
 r = requests.get('https://www.wildberries.ru/webapi/menu/main-menu-ru-ru.json')
 categories = expand_catalog(r.json())
 print(len(categories))
+
+with open('categories.pickle', 'wb') as handle:
+    pickle.dump(categories, handle, protocol=pickle.HIGHEST_PROTOCOL)

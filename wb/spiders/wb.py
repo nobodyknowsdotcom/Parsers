@@ -1,23 +1,39 @@
+import logging
+import pickle
+from urllib.request import Request
 import scrapy
 import requests
 import time
+import json
 
-from bs4 import BeautifulSoup
+from urllib.parse import urlparse
+from urllib.parse import parse_qs
+
 from scrapy.crawler import CrawlerProcess
+from seleniumwire import webdriver
 
 BASE_URL = 'https://www.wildberries.ru'
 CATALOG_URL = 'https://napi.wildberries.ru/api/menu/getburger?includeBrands=False'
-
-# Time after which the parser will change the proxy (in seconds)
-PROXY_LIFETIME = 420
-
-file = open('proxy.txt')
-proxy_list = [e.strip() for e in file.readlines()]
-file.close
+link_1 = 'https://www.wildberries.ru/catalog/'
+link_2 = '/detail.aspx?targetUrl=GP'
 
 alert_list = []
 denied_list = []
 pages = []
+
+option = webdriver.ChromeOptions()
+chrome_prefs = {}
+option.experimental_options["prefs"] = chrome_prefs
+chrome_prefs["profile.default_content_settings"] = {"images": 2}
+chrome_prefs["profile.managed_default_content_settings"] = {"images": 2}
+driver = webdriver.Chrome(chrome_options=option)
+driver.set_window_position(2000, 2000)
+
+logging.getLogger('scrapy').setLevel(logging.WARNING)
+logging.getLogger('seleniumwire.server').setLevel(logging.WARNING)
+logging.getLogger('seleniumwire.handler').setLevel(logging.WARNING)
+logging.getLogger('scrapy').propagate = False
+logging.getLogger('selenium.webdriver.remote.remote_connection').propagate = False
 
 def get_request(url):
     while True:
@@ -46,64 +62,120 @@ def expand_catalog(full_catalog, prefix=''):
                 alert_list.append(category['pageUrl'])
     return result
 
+def get_querry(url: str):
+    parsed_url = urlparse(url)
+    kind = ''
+    subject = ''
+    ext = ''
+
+    try:
+        kind = parse_qs(parsed_url.query)['kind']
+    except KeyError:
+        pass
+    try:
+        subject = parse_qs(parsed_url.query)['subject']
+    except KeyError:
+        pass
+    try:
+        ext = parse_qs(parsed_url.query)['ext']
+    except KeyError:
+        pass
+
+    category_query = ''
+    if (len(kind)) > 0:
+        if (len(subject) > 0):
+            if(len(ext) > 0):
+                category_query += 'kind='+''.join(kind)+'&subject='+''.join(subject)+'&ext='+''.join(ext)
+            else:
+                category_query += 'kind='+''.join(kind)+'&subject='+''.join(subject)
+    else:
+        if(len(ext) > 0):
+            category_query += 'subject='+''.join(subject)+'&ext='+''.join(ext)
+        else:
+            category_query = 'subject='+''.join(subject)
+    return(category_query)
+
 
 class WbSpider(scrapy.Spider):
     name = 'wb'
+    items = 0
+    category = ''
+    
+    with open('categories.pickle', 'rb') as f:
+        category_dict = pickle.load(f)
 
     def start_requests(self):
-        init_time = time.time()
-        PROXY_INDEX = 0
+        for catalog in expand_catalog(get_request('https://napi.wildberries.ru/api/menu/getburger?includeBrands=False').json()['data']['catalog'][:-4]):
+            driver.get(catalog[0] + '1&sort=popular&discount=30')
+            content_url = ''
+            count_url = ''
 
-        for catalog in expand_catalog(get_request('https://napi.wildberries.ru/api/menu/getburger?includeBrands=False').json()['data']['catalog'][:-4])[::-1]:
-            r = get_request(catalog[0] + '1')
-            soup = BeautifulSoup(r.content)
+            for i in range(80):
+                content_url, count_url = self.get_urls(driver)
+                if (('catalog' in content_url) & ('filters' in count_url)):
+                    print('got urls in %s seconds'%str(i*0.1))
+                    break
+                time.sleep(0.1)
+
+            category_query = get_querry(content_url)
             try:
-                products_count = ''.join(filter(lambda i: i.isdigit(),soup.find('span', {'class':'goods-count'}).findChildren('span', recursive=False)[2].text))
-            except AttributeError:
-                denied_list.append(catalog[0] + '1')
+                category = self.category_dict[category_query]
+            except:
+                print('unable to parse category ' + category_query)
                 continue
 
-            pages_count = int(int((products_count)) / 100)
-            if (pages_count >= 999):
-                print('Original pages count: %s, trimmed to %s due to unavailability' % (pages_count, 999))
-                pages_count = 999
-            print("Pages: ", pages_count)
+            pages = (int)(self.get_products_count(count_url)/100)
+            if (pages >= 100):
+                pages = 100
+            print(content_url, count_url, pages, sep = '\n---\n')
 
-            for page_id in range(1, pages_count + 1):
-                delta_time = time.time()-init_time
-
-                if(delta_time > PROXY_LIFETIME):
-                    init_time = time.time()
-                    
-                    # drop PROXY_INDEX to 0 for circular iteration over the proxy sheet
-                    if (PROXY_INDEX == len(proxy_list)-1):
-                        PROXY_INDEX = 0
-                    else:
-                        PROXY_INDEX += 1
-                    print("%s seconds have passed, it's time to change proxy!" % str(int(delta_time)))
-                    print('New proxy is: %s with index %s'%(str(proxy_list[PROXY_INDEX]), PROXY_INDEX))
-                    time.sleep(2)
+            for i in range(pages):
+                url = content_url+'&page=' + str(i+1)
                 request = scrapy.Request(
-                    url=catalog[0] + str(page_id) + '&sort=popular&discount=20', 
-                    callback=lambda r: self.parse_page(r, catalog[1]),
-                    meta={"proxy": "http://%s"%proxy_list[PROXY_INDEX]})
+                    url=url, 
+                    callback=lambda response: self.parse_request(response, i, category)
+                )
                 yield request
+        driver.close()
 
-    def parse_page(self, response, category_title):
-        for product_card in response.css('div.product-card__wrapper'):
-            name = product_card.css('span.goods-name::text').extract_first().strip()
-            product_link = BASE_URL + product_card.css('a::attr(href)').extract_first()
-            price = product_card.css('.lower-price::text').extract_first().strip()
-            old_price = product_card.css('.price-old-block del::text').extract_first()
+    def get_urls(self, driver: webdriver.Chrome):
+        content_url = ''
+        count_url = ''
+        for request in driver.requests:
+            if request.response:
+                if '/v4/filters?appType=1&couponsGeo=' in request.url:
+                    count_url = request.url
+                if '/catalog?appType=1&couponsGeo=' in request.url:
+                    content_url = request.url
+        return [content_url, count_url]
 
-            if not old_price:
-                old_price = price
-                
-            sale = product_card.css('span.product-card__sale::text').extract_first()
-            if not sale:
-                sale = '-0%'
-        pages.append('something')
-        print(category_title, response.url.split('?')[1].split('&')[0], "pages crawled:", len(pages))
+    def parse_request(self, request: requests.Request, page: int, category: str):
+        content = self.convert_to_json(request)
+        try:
+            for e in content['data']['products']:
+                self.items += 1
+                name, category, brand, price, discount_price, sale, link = self.get_product(e, category)
+                print(category,  price, discount_price, sale, sep ='\t')
+        except json.decoder.JSONDecodeError:
+            print("Cant get " + request.url)
+
+    def get_products_count(self, url: str) -> int:
+        count_r = requests.get(url)
+        count = json.loads(count_r.text)['data']['total']
+        return count
+
+    def convert_to_json(self, response: requests.Response):
+        content = json.loads(response.text)
+        return content
+
+    def get_product(self, json: str, category: str):
+        name = json['name']
+        brand = json['brand']
+        price = (int) (json['priceU'] / 100)
+        discount_price = (int) (json['salePriceU'] / 100)
+        sale = json['sale']
+        link = link_1 + str(json['id']) + link_2
+        return [name, category, brand, price, discount_price, sale, link]
 
 
 if __name__ == '__main__':
