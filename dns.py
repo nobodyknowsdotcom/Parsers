@@ -4,10 +4,15 @@ from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+import logging
+
+logger = logging.getLogger('selenium.webdriver.remote.remote_connection')
+logger.setLevel(logging.WARNING)
 
 chrome_options = Options()
 chrome_prefs = {}
 chrome_options.experimental_options["prefs"] = chrome_prefs
+chrome_options.add_experimental_option("excludeSwitches", ["enable-logging"])
 chrome_prefs["profile.default_content_settings"] = {"images": 2}
 chrome_prefs["profile.managed_default_content_settings"] = {"images": 2}
 driver = webdriver.Chrome(service=Service("./chromedriver.exe"), options=chrome_options)
@@ -55,7 +60,13 @@ def getCategories(content : BeautifulSoup):
         categories.append(e.get_text())
     return categories
 
-for link in links[:100]:
+def calculate_sale(discount_price: str, old_price: str):
+    if int(discount_price) < int(old_price):
+        return int(100 * round(int(discount_price)/int(old_price), 2))
+    else:
+        return 0 
+
+for link in links:
     try:
         driver.get(link)
     except:
@@ -71,11 +82,12 @@ for link in links[:100]:
         for e in cards:
             try:
                 name, old_price, discount_price, url = parseCard(e)
+                sale = calculate_sale(discount_price, old_price)
+                category = categories[-1]
+
+                print(category, old_price, discount_price, sale, sep="\t") 
             except AttributeError:
                 continue
-            print(categories, old_price, discount_price, sep="/---/")
-            items.append([categories, name, old_price, discount_price, url])
-        print(link, len(items), sep=':')
     else:
         for i in range(last_page):
             driver.get(link+'?p=%s'%str(i+1))
@@ -88,9 +100,10 @@ for link in links[:100]:
             for e in cards:
                 try:
                     name, old_price, discount_price, url = parseCard(e)
+                    sale = calculate_sale(discount_price, old_price)
                     category = categories[-1]
+
+                    print(category, old_price, discount_price, sale, sep="\t") 
                 except AttributeError:
                     continue
-                print(name, old_price, discount_price, category, sep="\t") 
-
 driver.close()
