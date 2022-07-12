@@ -3,7 +3,6 @@ import re
 import time
 from bs4 import BeautifulSoup
 from selenium import webdriver
-import selenium
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 
@@ -14,12 +13,12 @@ data = []
 with open('./urls.txt', 'r') as f:
     urls = f.readlines()
 
-def parse_soup(soup: BeautifulSoup):
+def parse_soup(soup: BeautifulSoup, url: str):
     name = soup.select_one('h1').text.strip()
     title_seconds = soup.select_one('.meta span.text').text.strip()
     preview_pictures = soup.find('a', class_='img-container').get('href')
     detail_picture = soup.find('a', class_='img-container').get('href')
-    desc = soup.find('div', class_='desc').find('div', class_='description-block collapse-content')
+    desc = soup.find('div', class_='desc').find('p').get_text()
     notes_desc = soup.select_one('.articles-container.articles-col.collapsible-block.notes.opened-half').select('.description-block')
 
     if notes_desc != []:
@@ -62,18 +61,18 @@ def parse_soup(soup: BeautifulSoup):
         'notes_aromat': str(notes_aromat),
         'notes_gastr': str(notes_gastr),
         'techs': techs,
-        'url': url,
+        'url': url.strip(),
     }
     return item
 
-def dump_to_json(filename, data, **kwargs):
+def dump_to_json(filename, data, **kwargs,):
     kwargs.setdefault('ensure_ascii', False)
     kwargs.setdefault('indent', 1)
     
-    with open(filename, 'w') as f:
+    with open(filename, 'w', encoding='utf-8') as f:
         json.dump(data, f, **kwargs)
 
-for url in urls[:100]:
+for url in urls:
     try:
         driver.get(url)
         time.sleep(2)
@@ -81,11 +80,11 @@ for url in urls[:100]:
         time.sleep(5)
         continue
     try:
-        item = parse_soup(BeautifulSoup(driver.page_source, 'lxml'))
+        item = parse_soup(BeautifulSoup(driver.page_source, 'lxml'), url)
     except AttributeError:
         continue
     data.append(item)
-    print(item, sep='\n')
+    print(item, len(data), sep='\n')
 
 dump_to_json('winestyle.json', data)
 driver.close()
