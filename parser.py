@@ -3,10 +3,13 @@ import re
 import time
 from bs4 import BeautifulSoup
 from selenium import webdriver
+import selenium
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 
 options = Options()
+options.add_argument("--headless")
+options.add_argument("--incognito")
 driver = webdriver.Chrome(service=Service("./chromedriver.exe"), options=options)
 
 data = []
@@ -36,15 +39,12 @@ def parse_soup(soup: BeautifulSoup, url: str):
     
     new_rows = []
     for row in select:
-        cols = row.text.strip().split(':')
         if (len(row) != 0):
             if (len(row) != 1):
                 tech_name = row.find('span', class_="name").text.strip(':')
                 tech_value = row
-                tech_val = tech_value.span.decompose()
                 tech_val2 = tech_value.text.strip()
                 arr = [tech_name, tech_val2]
-                # print(val, value.text.strip(','))
                 new_rows.append(arr)
 
     for new_row in new_rows:
@@ -76,7 +76,7 @@ for url in urls:
     try:
         driver.get(url)
         time.sleep(2)
-    except:
+    except selenium.common.exceptions.WebDriverException:
         time.sleep(5)
         continue
     try:
@@ -84,7 +84,7 @@ for url in urls:
     except AttributeError:
         continue
     data.append(item)
-    print(item, len(data), sep='\n')
+    print(item, sep='\n')
 
 dump_to_json('winestyle.json', data)
 driver.close()
