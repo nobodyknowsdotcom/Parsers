@@ -23,17 +23,16 @@ pages = []
 
 option = webdriver.ChromeOptions()
 chrome_prefs = {}
+option.add_argument("--headless")
+option.add_argument("--incognito")
 option.experimental_options["prefs"] = chrome_prefs
-chrome_prefs["profile.default_content_settings"] = {"images": 2}
-chrome_prefs["profile.managed_default_content_settings"] = {"images": 2}
 driver = webdriver.Chrome(chrome_options=option)
-driver.set_window_position(2000, 2000)
 
-logging.getLogger('scrapy').setLevel(logging.WARNING)
-logging.getLogger('seleniumwire.server').setLevel(logging.WARNING)
-logging.getLogger('seleniumwire.handler').setLevel(logging.WARNING)
-logging.getLogger('scrapy').propagate = False
-logging.getLogger('selenium.webdriver.remote.remote_connection').propagate = False
+#logging.getLogger('scrapy').setLevel(logging.WARNING)
+#logging.getLogger('seleniumwire.server').setLevel(logging.WARNING)
+#logging.getLogger('seleniumwire.handler').setLevel(logging.WARNING)
+#logging.getLogger('scrapy').propagate = False
+#logging.getLogger('selenium.webdriver.remote.remote_connection').propagate = False
 
 def get_request(url):
     while True:
@@ -155,7 +154,7 @@ class WbSpider(scrapy.Spider):
             for e in content['data']['products']:
                 self.items += 1
                 name, category, brand, price, discount_price, sale, link = self.get_product(e, category)
-                print(category,  price, discount_price, sale, sep ='\t')
+                print(category, self.items, sep ='\t')
         except json.decoder.JSONDecodeError:
             print("Cant get " + request.url)
 
