@@ -1,6 +1,5 @@
 import logging
 import pickle
-from urllib.request import Request
 import scrapy
 import requests
 import time
@@ -10,6 +9,7 @@ from urllib.parse import urlparse
 from urllib.parse import parse_qs
 
 from scrapy.crawler import CrawlerProcess
+import selenium
 from seleniumwire import webdriver
 
 BASE_URL = 'https://www.wildberries.ru'
@@ -26,13 +26,12 @@ chrome_prefs = {}
 option.add_argument("--headless")
 option.add_argument("--incognito")
 option.experimental_options["prefs"] = chrome_prefs
-driver = webdriver.Chrome(chrome_options=option)
 
-#logging.getLogger('scrapy').setLevel(logging.WARNING)
-#logging.getLogger('seleniumwire.server').setLevel(logging.WARNING)
-#logging.getLogger('seleniumwire.handler').setLevel(logging.WARNING)
-#logging.getLogger('scrapy').propagate = False
-#logging.getLogger('selenium.webdriver.remote.remote_connection').propagate = False
+logging.getLogger('scrapy').setLevel(logging.WARNING)
+logging.getLogger('seleniumwire.server').setLevel(logging.WARNING)
+logging.getLogger('seleniumwire.handler').setLevel(logging.WARNING)
+logging.getLogger('scrapy').propagate = False
+logging.getLogger('selenium.webdriver.remote.remote_connection').propagate = False
 
 def get_request(url):
     while True:
@@ -44,7 +43,6 @@ def get_request(url):
             return None
         else:
             time.sleep(2)
-
 
 def expand_catalog(full_catalog, prefix=''):
     result = []
@@ -98,6 +96,9 @@ def get_querry(url: str):
 class WbSpider(scrapy.Spider):
     name = 'wb'
     items = 0
+    selenium_reopen_counter = 0
+    passes = 0
+    driver = webdriver.Chrome(chrome_options=option)
     category = ''
     
     with open('categories.pickle', 'rb') as f:
@@ -105,25 +106,41 @@ class WbSpider(scrapy.Spider):
 
     def start_requests(self):
         for catalog in expand_catalog(get_request('https://napi.wildberries.ru/api/menu/getburger?includeBrands=False').json()['data']['catalog'][:-4]):
-            driver.get(catalog[0] + '1&sort=popular&discount=30')
+            if (self.selenium_reopen_counter > 500):
+                self.selenium_reopen_counter = 0
+                self.switch_driver()
+            try:
+                self.driver.get(catalog[0] + '1&sort=popular&discount=15')
+            except:
+                self.passes += 1
+                self.selenium_reopen_counter = 0
+                self.switch_driver()
+                continue
             content_url = ''
             count_url = ''
 
-            for i in range(80):
-                content_url, count_url = self.get_urls(driver)
+            for i in range(50):
+                content_url, count_url = self.get_urls(self.driver)
                 if (('catalog' in content_url) & ('filters' in count_url)):
-                    print('got urls in %s seconds'%str(i*0.1))
+                    print('got urls in %s ticks'%str(i*1))
                     break
                 time.sleep(0.1)
+            if (content_url == '') | (count_url == ''):
+                self.passes += 1
+                continue
 
             category_query = get_querry(content_url)
             try:
                 category = self.category_dict[category_query]
             except:
+                self.passes += 1
                 print('unable to parse category ' + category_query)
                 continue
-
-            pages = (int)(self.get_products_count(count_url)/100)
+            try:
+                pages = (int)(self.get_products_count(count_url)/100)
+            except:
+                self.passes += 1
+                print('Unable to get pages count of ' + category)
             if (pages >= 100):
                 pages = 100
             print(content_url, count_url, pages, sep = '\n---\n')
@@ -132,10 +149,17 @@ class WbSpider(scrapy.Spider):
                 url = content_url+'&page=' + str(i+1)
                 request = scrapy.Request(
                     url=url, 
+                    meta={'download_timeout': 5},
                     callback=lambda response: self.parse_request(response, i, category)
                 )
                 yield request
-        driver.close()
+            self.selenium_reopen_counter += 1
+        self.driver.close()
+
+    def switch_driver(self):
+        print('Switching driver...')
+        self.driver.close()
+        self.driver = webdriver.Chrome(chrome_options=option)
 
     def get_urls(self, driver: webdriver.Chrome):
         content_url = ''
@@ -154,7 +178,7 @@ class WbSpider(scrapy.Spider):
             for e in content['data']['products']:
                 self.items += 1
                 name, category, brand, price, discount_price, sale, link = self.get_product(e, category)
-                print(category, self.items, sep ='\t')
+                # print(name, category, brand, price, discount_price, sale, link)
         except json.decoder.JSONDecodeError:
             print("Cant get " + request.url)
 
@@ -181,3 +205,4 @@ if __name__ == '__main__':
     process = CrawlerProcess()
     process.crawl(WbSpider)
     process.start()
+
