@@ -4,12 +4,12 @@ import scrapy
 import requests
 import time
 import json
+import psycopg2
 
 from urllib.parse import urlparse
 from urllib.parse import parse_qs
 
 from scrapy.crawler import CrawlerProcess
-import selenium
 from seleniumwire import webdriver
 
 BASE_URL = 'https://www.wildberries.ru'
@@ -26,6 +26,14 @@ chrome_prefs = {}
 option.add_argument("--headless")
 option.add_argument("--incognito")
 option.experimental_options["prefs"] = chrome_prefs
+
+conn = psycopg2.connect(
+    host="localhost",
+    database="postgres",
+    user="postgres",
+    password="postgres")
+cursor = conn.cursor()
+cursor.execute('TRUNCATE Table wb')
 
 logging.getLogger('scrapy').setLevel(logging.WARNING)
 logging.getLogger('seleniumwire.server').setLevel(logging.WARNING)
@@ -60,13 +68,19 @@ def expand_catalog(full_catalog, prefix=''):
     return result
 
 def get_querry(url: str):
-    parsed_url = urlparse(url)
-    kind = ''
-    subject = ''
+    category_query = ''
+    kind = '' 
+    brand = '' 
+    subject = '' 
     ext = ''
+    parsed_url = urlparse(url)
 
     try:
         kind = parse_qs(parsed_url.query)['kind']
+    except KeyError:
+        pass
+    try:
+        brand = parse_qs(parsed_url.query)['brand']
     except KeyError:
         pass
     try:
@@ -77,21 +91,15 @@ def get_querry(url: str):
         ext = parse_qs(parsed_url.query)['ext']
     except KeyError:
         pass
-
-    category_query = ''
-    if (len(kind)) > 0:
-        if (len(subject) > 0):
-            if(len(ext) > 0):
-                category_query += 'kind='+''.join(kind)+'&subject='+''.join(subject)+'&ext='+''.join(ext)
-            else:
-                category_query += 'kind='+''.join(kind)+'&subject='+''.join(subject)
+    # Порядок запроса: kind, brand, subject, ext
+    if kind : category_query += 'kind='+''.join(kind)+'&'
+    if brand: category_query += 'brand='+''.join(brand)+'&' 
+    if (subject != '') & (ext != ''): 
+        category_query += 'subject='+''.join(subject)+'&'
     else:
-        if(len(ext) > 0):
-            category_query += 'subject='+''.join(subject)+'&ext='+''.join(ext)
-        else:
-            category_query = 'subject='+''.join(subject)
+        category_query += 'subject='+''.join(subject)
+    if ext: category_query += 'ext='+''.join(ext)
     return(category_query)
-
 
 class WbSpider(scrapy.Spider):
     name = 'wb'
@@ -106,6 +114,9 @@ class WbSpider(scrapy.Spider):
 
     def start_requests(self):
         for catalog in expand_catalog(get_request('https://napi.wildberries.ru/api/menu/getburger?includeBrands=False').json()['data']['catalog'][:-4]):
+            content_url = ''
+            count_url = ''
+
             if (self.selenium_reopen_counter > 500):
                 self.selenium_reopen_counter = 0
                 self.switch_driver()
@@ -116,8 +127,6 @@ class WbSpider(scrapy.Spider):
                 self.selenium_reopen_counter = 0
                 self.switch_driver()
                 continue
-            content_url = ''
-            count_url = ''
 
             for i in range(50):
                 content_url, count_url = self.get_urls(self.driver)
@@ -154,6 +163,7 @@ class WbSpider(scrapy.Spider):
                 )
                 yield request
             self.selenium_reopen_counter += 1
+            conn.commit()
         self.driver.close()
 
     def switch_driver(self):
@@ -177,8 +187,11 @@ class WbSpider(scrapy.Spider):
         try:
             for e in content['data']['products']:
                 self.items += 1
-                name, category, brand, price, discount_price, sale, link = self.get_product(e, category)
-                # print(name, category, brand, price, discount_price, sale, link)
+                name, category, brand, price, discount_price, sale, link, image= self.get_product(e, category)
+
+                sql = 'INSERT INTO wb (name, category, brand, price, discount_price, sale, link, image) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)'
+                cursor.execute(sql, (name, category, brand, price, discount_price, sale, link, image))
+                print(category, self.items)
         except json.decoder.JSONDecodeError:
             print("Cant get " + request.url)
 
@@ -192,13 +205,16 @@ class WbSpider(scrapy.Spider):
         return content
 
     def get_product(self, json: str, category: str):
+        id = str(json['id'])
         name = json['name']
         brand = json['brand']
         price = (int) (json['priceU'] / 100)
         discount_price = (int) (json['salePriceU'] / 100)
         sale = json['sale']
-        link = link_1 + str(json['id']) + link_2
-        return [name, category, brand, price, discount_price, sale, link]
+        link = link_1 + id + link_2
+        # TODO: понять, как генерируется ссылка на картинку и кто такой basket wb
+        image = 'vol%s/part%s/%s/images/c516x688/1.jpg'%(id[:3], id[:5], id)
+        return [name, category, brand, price, discount_price, sale, link, image]
 
 
 if __name__ == '__main__':
