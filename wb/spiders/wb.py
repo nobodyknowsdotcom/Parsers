@@ -155,15 +155,15 @@ class WbSpider(scrapy.Spider):
             print(content_url, count_url, pages, sep = '\n---\n')
 
             for i in range(pages):
-                url = content_url+'&page=' + str(i+1)
                 request = scrapy.Request(
-                    url=url, 
+                    url=content_url+'&page=' + str(i+1), 
                     meta={'download_timeout': 5},
-                    callback=lambda response: self.parse_request(response, i, category)
+                    callback=lambda response: self.parse_request(response, category)
                 )
                 yield request
             self.selenium_reopen_counter += 1
             conn.commit()
+            time.sleep(1)
         self.driver.close()
 
     def switch_driver(self):
@@ -182,7 +182,7 @@ class WbSpider(scrapy.Spider):
                     content_url = request.url
         return [content_url, count_url]
 
-    def parse_request(self, request: requests.Request, page: int, category: str):
+    def parse_request(self, request: requests.Request, category: str):
         content = self.convert_to_json(request)
         try:
             for e in content['data']['products']:
@@ -213,7 +213,7 @@ class WbSpider(scrapy.Spider):
         sale = json['sale']
         link = link_1 + id + link_2
         # TODO: понять, как генерируется ссылка на картинку и кто такой basket wb
-        image = 'vol%s/part%s/%s/images/c516x688/1.jpg'%(id[:3], id[:5], id)
+        image = 'https://images.wbstatic.net/big/new/%s0000/%s-1.jpg'%(id[:-4], id)
         return [name, category, brand, price, discount_price, sale, link, image]
 
 

@@ -19,8 +19,7 @@ ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 
-CONCURRENT_REQUESTS = 16
-
+CONCURRENT_REQUESTS = 32
 RANDOMIZE_DOWNLOAD_DELAY = False
 
 DOWNLOAD_DELAY = 0
@@ -35,7 +34,7 @@ DOWNLOAD_DELAY = 0
 # Disable cookies (enabled by default)
 COOKIES_ENABLED = False
 HTTPCACHE_ENABLED=False
-RETRY_TIMES = 10
+RETRY_TIMES = 1
 
 # Disable Telnet Console (enabled by default)
 #TELNETCONSOLE_ENABLED = False
