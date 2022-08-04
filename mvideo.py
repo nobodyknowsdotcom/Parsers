@@ -26,6 +26,7 @@ def read_links():
         for line in file: 
             line = line.strip()
             result.append(line)
+    return result
 
 def get_last_page(soup: BeautifulSoup) -> str:
     buttons_container = soup.find('div',{'class':'bottom-controls'})
