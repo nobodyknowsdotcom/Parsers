@@ -43,7 +43,7 @@ def is_on_stock(card: BeautifulSoup) -> bool:
     else:
          return True
 
-def parse_card(card: BeautifulSoup) -> [str, ]:
+def parse_card(card: BeautifulSoup):
     name = card.find('a', {'class':'product-title__text'}).get_text()
     link = card.find('a', {'class':'product-title__text'})['href']
     categories = []
