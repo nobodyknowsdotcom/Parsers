@@ -11,6 +11,7 @@ from urllib.parse import parse_qs
 
 from scrapy.crawler import CrawlerProcess
 from seleniumwire import webdriver
+from webdriver_manager.chrome import ChromeDriverManager
 
 BASE_URL = 'https://www.wildberries.ru'
 CATALOG_URL = 'https://napi.wildberries.ru/api/menu/getburger?includeBrands=False'
@@ -29,17 +30,20 @@ option.experimental_options["prefs"] = chrome_prefs
 
 conn = psycopg2.connect(
     host="localhost",
+    port = 5432,
     database="postgres",
     user="postgres",
     password="postgres")
 cursor = conn.cursor()
 cursor.execute('TRUNCATE Table wb')
+conn.commit()
 
 logging.getLogger('scrapy').setLevel(logging.WARNING)
 logging.getLogger('seleniumwire.server').setLevel(logging.WARNING)
 logging.getLogger('seleniumwire.handler').setLevel(logging.WARNING)
 logging.getLogger('scrapy').propagate = False
 logging.getLogger('selenium.webdriver.remote.remote_connection').propagate = False
+
 
 def get_request(url):
     while True:
@@ -51,6 +55,7 @@ def get_request(url):
             return None
         else:
             time.sleep(2)
+
 
 def expand_catalog(full_catalog, prefix=''):
     result = []
@@ -67,11 +72,12 @@ def expand_catalog(full_catalog, prefix=''):
                 alert_list.append(category['pageUrl'])
     return result
 
+
 def get_querry(url: str):
     category_query = ''
-    kind = '' 
-    brand = '' 
-    subject = '' 
+    kind = ''
+    brand = ''
+    subject = ''
     ext = ''
     parsed_url = urlparse(url)
 
@@ -92,46 +98,41 @@ def get_querry(url: str):
     except KeyError:
         pass
     # Порядок запроса: kind, brand, subject, ext
-    if kind : category_query += 'kind='+''.join(kind)+'&'
-    if brand: category_query += 'brand='+''.join(brand)+'&' 
-    if (subject != '') & (ext != ''): 
-        category_query += 'subject='+''.join(subject)+'&'
+    if kind: category_query += 'kind=' + ''.join(kind) + '&'
+    if brand: category_query += 'brand=' + ''.join(brand) + '&'
+    if (subject != '') & (ext != ''):
+        category_query += 'subject=' + ''.join(subject) + '&'
     else:
-        category_query += 'subject='+''.join(subject)
-    if ext: category_query += 'ext='+''.join(ext)
-    return(category_query)
+        category_query += 'subject=' + ''.join(subject)
+    if ext: category_query += 'ext=' + ''.join(ext)
+    return (category_query)
+
 
 class WbSpider(scrapy.Spider):
     name = 'wb'
     items = 0
     selenium_reopen_counter = 0
     passes = 0
-    driver = webdriver.Chrome(chrome_options=option)
     category = ''
-    
+
+    driver = webdriver.Chrome(ChromeDriverManager().install(), chrome_options=option)
+
     with open('categories.pickle', 'rb') as f:
         category_dict = pickle.load(f)
 
     def start_requests(self):
-        for catalog in expand_catalog(get_request('https://napi.wildberries.ru/api/menu/getburger?includeBrands=False').json()['data']['catalog'][:-4]):
+        for catalog in expand_catalog(
+                get_request('https://napi.wildberries.ru/api/menu/getburger?includeBrands=False').json()['data'][
+                    'catalog'][:-4]):
             content_url = ''
             count_url = ''
 
-            if (self.selenium_reopen_counter > 500):
-                self.selenium_reopen_counter = 0
-                self.switch_driver()
-            try:
-                self.driver.get(catalog[0] + '1&sort=popular&discount=15')
-            except:
-                self.passes += 1
-                self.selenium_reopen_counter = 0
-                self.switch_driver()
-                continue
+            self.driver.get(catalog[0] + '1&sort=popular&discount=15')
 
             for i in range(50):
                 content_url, count_url = self.get_urls(self.driver)
-                if (('catalog' in content_url) & ('filters' in count_url)):
-                    print('got urls in %s ticks'%str(i*1))
+                if ('catalog' in content_url) & ('filters' in count_url):
+                    print('got urls in %s ticks' % str(i))
                     break
                 time.sleep(0.1)
             if (content_url == '') | (count_url == ''):
@@ -146,21 +147,24 @@ class WbSpider(scrapy.Spider):
                 print('unable to parse category ' + category_query)
                 continue
             try:
-                pages = (int)(self.get_products_count(count_url)/100)
+                pages = (int)(self.get_products_count(count_url) / 100)
             except:
                 self.passes += 1
                 print('Unable to get pages count of ' + category)
             if (pages >= 100):
                 pages = 100
-            print(content_url, count_url, pages, sep = '\n---\n')
+            print(content_url, count_url, pages, sep='\n---\n')
 
             for i in range(pages):
                 request = scrapy.Request(
-                    url=content_url+'&page=' + str(i+1), 
+                    url=content_url + '&page=' + str(i + 1),
                     meta={'download_timeout': 5},
                     callback=lambda response: self.parse_request(response, category)
                 )
-                yield request
+                try:
+                    yield request
+                except:
+                    continue
             self.selenium_reopen_counter += 1
             conn.commit()
             time.sleep(1)
@@ -187,11 +191,11 @@ class WbSpider(scrapy.Spider):
         try:
             for e in content['data']['products']:
                 self.items += 1
-                name, category, brand, price, discount_price, sale, link, image= self.get_product(e, category)
+                name, category, brand, price, discount_price, sale, link, image = self.get_product(e, category)
 
                 sql = 'INSERT INTO wb (name, category, brand, price, discount_price, sale, link, image) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)'
                 cursor.execute(sql, (name, category, brand, price, discount_price, sale, link, image))
-                print(category, self.items)
+            print(category, self.items)
         except json.decoder.JSONDecodeError:
             print("Cant get " + request.url)
 
@@ -208,12 +212,11 @@ class WbSpider(scrapy.Spider):
         id = str(json['id'])
         name = json['name']
         brand = json['brand']
-        price = (int) (json['priceU'] / 100)
-        discount_price = (int) (json['salePriceU'] / 100)
+        price = (int)(json['priceU'] / 100)
+        discount_price = (int)(json['salePriceU'] / 100)
         sale = json['sale']
         link = link_1 + id + link_2
-        # TODO: понять, как генерируется ссылка на картинку и кто такой basket wb
-        image = 'https://images.wbstatic.net/big/new/%s0000/%s-1.jpg'%(id[:-4], id)
+        image = 'https://images.wbstatic.net/big/new/%s0000/%s-1.jpg' % (id[:-4], id)
         return [name, category, brand, price, discount_price, sale, link, image]
 
 
@@ -221,4 +224,3 @@ if __name__ == '__main__':
     process = CrawlerProcess()
     process.crawl(WbSpider)
     process.start()
-
