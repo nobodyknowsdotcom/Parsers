@@ -1,83 +1,48 @@
+import math
 import random
 import re
 from bs4 import BeautifulSoup
 from selenium import webdriver
 import selenium
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 
-USER_AGENTS = (
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_5_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36',
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:90.0) Gecko/20100101 Firefox/90.0',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 11.5; rv:90.0) Gecko/20100101 Firefox/90.0',
-    'Mozilla/5.0 (X11; Linux i686; rv:90.0) Gecko/20100101 Firefox/90.0',
-    'Mozilla/5.0 (Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0',
-    'Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:90.0) Gecko/20100101 Firefox/90.0',
-    'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0',
-    'Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:78.0) Gecko/20100101 Firefox/78.0',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 11.5; rv:78.0) Gecko/20100101 Firefox/78.0',
-    'Mozilla/5.0 (X11; Linux i686; rv:78.0) Gecko/20100101 Firefox/78.0',
-    'Mozilla/5.0 (Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0',
-    'Mozilla/5.0 (X11; Ubuntu; Linux i686; rv:78.0) Gecko/20100101 Firefox/78.0',
-    'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0',
-    'Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:78.0) Gecko/20100101 Firefox/78.0',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_5_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.2 Safari/605.1.15',
-    'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 5.1; Trident/4.0)',
-    'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.0; WOW64; Trident/4.0;)',
-    'Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.1; Trident/4.0)',
-    'Mozilla/4.0 (compatible; MSIE 9.0; Windows NT 6.0)',
-    'Mozilla/4.0 (compatible; MSIE 9.0; Windows NT 6.1)',
-    'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.1; WOW64; Trident/6.0)',
-    'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2)',
-    'Mozilla/5.0 (Windows NT 6.1; Trident/7.0; rv:11.0) like Gecko',
-    'Mozilla/5.0 (Windows NT 6.2; Trident/7.0; rv:11.0) like Gecko',
-    'Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko',
-    'Mozilla/5.0 (Windows NT 10.0; Trident/7.0; rv:11.0) like Gecko',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.67',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_5_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.67',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 OPR/78.0.4093.112',
-    'Mozilla/5.0 (Windows NT 10.0; WOW64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 OPR/78.0.4093.112',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_5_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 OPR/78.0.4093.112',
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 OPR/78.0.4093.112',
-    'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Vivaldi/4.1',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Vivaldi/4.1',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_5_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Vivaldi/4.1',
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Vivaldi/4.1',
-    'Mozilla/5.0 (X11; Linux i686) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Vivaldi/4.1',
-    'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 YaBrowser/21.6.0 Yowser/2.5 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 YaBrowser/21.6.0 Yowser/2.5 Safari/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_5_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 YaBrowser/21.6.0 Yowser/2.5 Safari/537.36'
-)
+# Количество показываемых товаров на странице - 16/32/48/72
+SHOW_COUNT = 72
+# Настройка ChromeDriver'а
+options = Options()
+options.add_argument("--disable-gpu")
+options.add_experimental_option("excludeSwitches", ["enable-logging"])
 
-links = []
-with open("mvideo_links.txt", mode='r', encoding='utf-8') as file:
-    for line in file: 
-        line = line.strip()
-        links.append(line)
+items = []
+requests_count = 0
 
-def getLastPage(soup: BeautifulSoup):
+def read_links():
+    result = []
+    with open("mvideo_links.txt", mode='r', encoding='utf-8') as file:
+        for line in file: 
+            line = line.strip()
+            result.append(line)
+
+def get_last_page(soup: BeautifulSoup) -> str:
     buttons_container = soup.find('div',{'class':'bottom-controls'})
     lastPageElement = buttons_container.find_all('li', {'class':'ng-star-inserted'})[-1].findChild('a', recursive=True)
     return lastPageElement.get_text()
 
-def getCards(soup: BeautifulSoup):
+def get_cards(soup: BeautifulSoup) -> BeautifulSoup:
     return soup.findChildren('mvid-plp-product-card-mobile', recursive=True)
 
-def onStock(card: BeautifulSoup):
+def is_on_stock(card: BeautifulSoup) -> bool:
     aviable = card.findChild('mvid-plp-notification-block', recursive=True).findChild('div', recursive=True).get_text()
     if aviable.strip() == 'Нет в наличии':
         return False
     else:
          return True
 
-def parseCard(card: BeautifulSoup):
+def parse_card(card: BeautifulSoup) -> [str, ]:
     name = card.find('a', {'class':'product-title__text'}).get_text()
     link = card.find('a', {'class':'product-title__text'})['href']
     categories = []
@@ -100,61 +65,72 @@ def parseCard(card: BeautifulSoup):
         price = discount_price
     return [name, price, discount_price, rating, feedbackCount, link, categories]
 
-items = []
-lastPage = 1
+links = read_links()
 for link in links:
-    options = Options()
-    options.add_experimental_option("excludeSwitches", ["enable-logging"])
     driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
     driver.set_window_size(600, 1000)
+    driver.set_window_position(2000, 2000)
 
-    postfix = '/f/skidka=da/tolko-v-nalichii=da?showCount=72'
-    driver.get(link.split('?')[0]+postfix)
-    driver.implicitly_wait(5) # seconds
+    try: 
+        postfix = '/f/skidka=da/tolko-v-nalichii=da?showCount=%s' % SHOW_COUNT
+        driver.get(link.split('?')[0]+postfix)
+    except selenium.common.exceptions.WebDriverException: 
+        pass
+
+    driver.implicitly_wait(5)
     try:
         btn = WebDriverWait(driver, 10).until(
             lambda wd: wd.find_element(By.CSS_SELECTOR, '.count.ng-star-inserted'))
     except selenium.common.TimeoutException:
+        print('Products count not found!')
         continue
     driver.execute_script("document.body.style.zoom='15%'")
     driver.execute_script("window.scrollTo(0,document.body.scrollHeight)")
-    soup = BeautifulSoup(driver.page_source, 'html.parser')
 
     try:
-        lastPage = int(getLastPage(soup))
+        soup = BeautifulSoup(driver.page_source, 'html.parser')
+        products_count = soup.select_one('.count.ng-star-inserted').get_text()
+        lastPage = math.ceil(int(products_count) / SHOW_COUNT)
     except (IndexError, AttributeError):
+        print('Products count not found!')
         continue
+
     print('Last page for %s is %s'%(link.split('?')[0]+postfix, lastPage))
 
     for i in range(lastPage):
-        driver.delete_all_cookies()
-        postfix = '/f/skidka=da/tolko-v-nalichii=da?showCount=72?page=%s'%str(i+1)
-        driver.get(link.split('?')[0]+postfix, )
+        try:
+            postfix = '/f/skidka=da/tolko-v-nalichii=da?showCount=%s?page=%s' % (SHOW_COUNT, str(i+1))
+            driver.get(link.split('?')[0]+postfix)
+        except selenium.common.TimeoutException:
+            print('Error processing %s' % link.split('?')[0]+postfix)
+            continue
         driver.execute_script("document.body.style.zoom='5%'")
-        driver.implicitly_wait(5) # seconds
+
+        driver.implicitly_wait(5)
         try:
             btn = WebDriverWait(driver, 10).until(
             lambda wd: wd.find_element(By.CLASS_NAME, 'price__main-value'))
         except selenium.common.TimeoutException:
             continue
+
         soup = BeautifulSoup(driver.page_source, 'html.parser')
-        cards = getCards(soup)
+        cards = get_cards(soup)
         for card in cards:
             try:
-                name, price, discount_price, rating, feedbackCount, url, categories = parseCard(card)
+                name, price, discount_price, rating, feedbackCount, url, categories = parse_card(card)
                 items.append([name, price, discount_price, rating, feedbackCount, url, categories])
             except:
-                pass
+                print('Card processing error')
         try:
-            if not onStock(cards[-1]): break
+            if not is_on_stock(cards[-1]): break
         except:
             pass
+        requests_count += 1
         print("Found %s cards, totally %s items"%(len(cards), len(items)))
     driver.close()
 
-with open('mvideo_items.txt', 'w', encoding='utf-8') as file:
-    for e in items:
-        file.write('%s\n'%e)
-
-driver.close()
+try:
+    driver.close()
+except:
+    pass
 
