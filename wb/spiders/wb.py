@@ -5,6 +5,7 @@ import requests
 import time
 import json
 import psycopg2
+from urllib.parse import unquote
 
 from urllib.parse import urlparse
 from urllib.parse import parse_qs
@@ -111,7 +112,6 @@ def get_querry(url: str):
 class WbSpider(scrapy.Spider):
     name = 'wb'
     items = 0
-    selenium_reopen_counter = 0
     passes = 0
     category = ''
 
@@ -127,7 +127,10 @@ class WbSpider(scrapy.Spider):
             content_url = ''
             count_url = ''
 
-            self.driver.get(catalog[0] + '1&sort=popular&discount=15')
+            try:
+                self.driver.get(catalog[0] + '1&sort=popular&discount=15')
+            except:
+                continue
 
             for i in range(50):
                 content_url, count_url = self.get_urls(self.driver)
@@ -157,15 +160,14 @@ class WbSpider(scrapy.Spider):
 
             for i in range(pages):
                 request = scrapy.Request(
-                    url=content_url + '&page=' + str(i + 1),
-                    meta={'download_timeout': 5},
-                    callback=lambda response: self.parse_request(response, category)
+                    url=content_url + '&page=%s&buddy=%s'%(str(i + 1), category),
+                    meta={'download_timeout': 1},
+                    callback=lambda response: self.parse_request(response)
                 )
                 try:
                     yield request
                 except:
                     continue
-            self.selenium_reopen_counter += 1
             conn.commit()
             time.sleep(1)
         self.driver.close()
@@ -186,8 +188,9 @@ class WbSpider(scrapy.Spider):
                     content_url = request.url
         return [content_url, count_url]
 
-    def parse_request(self, request: requests.Request, category: str):
+    def parse_request(self, request: requests.Request):
         content = self.convert_to_json(request)
+        category = unquote(request.url.split('&buddy=')[1])
         try:
             for e in content['data']['products']:
                 self.items += 1
